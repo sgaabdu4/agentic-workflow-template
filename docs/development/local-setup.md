@@ -93,6 +93,23 @@ For automation that already vets the hook source, `codex exec --dangerously-bypa
 
 Confirm that the `playwright` MCP server is available before visual work. Claude Code and Copilot CLI use `.mcp.json`; Codex uses `.codex/config.toml`; GitHub Copilot coding agent provides Playwright in its hosted environment.
 
+### Copilot on Windows
+
+Copilot chooses a hook handler by platform: the `bash` command on Unix, the `powershell` command on
+Windows. `.github/hooks/agentic-workflow.json` declares both. A handler with only `bash` has nothing
+to run on Windows, and because `preToolUse` is **fail-closed** — a non-zero exit other than 2 denies
+the call — the result is that _every_ tool call is rejected with
+`Denied by preToolUse hook (hook errored)`, including reads and `ask_user`. The session looks
+completely broken rather than merely unprotected.
+
+The Windows commands run the shared scripts through `scripts/hooks/run-posix.mjs` rather than calling
+`bash` by name, because `System32\bash.exe` is the WSL launcher and shadows Git Bash on `PATH`. The
+shim resolves the real Git Bash and passes stdin, stdout, and the exit code straight through, so the
+hook contract is unchanged. `verify:agents` asserts every Copilot handler declares a `powershell`
+command and that it does not call `bash` by name.
+
+Windows therefore needs Git for Windows (for Git Bash) and Node on `PATH`.
+
 GitHub Copilot CLI keeps repository hooks and workspace MCP servers off in an untrusted non-interactive `-p` session. Opt into both for that process when the folder has not already been trusted:
 
 ```bash

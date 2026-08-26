@@ -5,6 +5,7 @@
       {
         "type": "command",
         "bash": "node \"$(git rev-parse --show-toplevel)/scripts/hooks/pre-tool-use.js\" copilot",
+        "powershell": "node \"$(git rev-parse --show-toplevel)/scripts/hooks/pre-tool-use.js\" copilot",
         "timeoutSec": 30
       }
     ],
@@ -12,6 +13,7 @@
       {
         "type": "command",
         "bash": "bash \"$(git rev-parse --show-toplevel)/scripts/hooks/post-tool-use.sh\"",
+        "powershell": "node \"$(git rev-parse --show-toplevel)/scripts/hooks/run-posix.mjs\" scripts/hooks/post-tool-use.sh",
         "timeoutSec": 60
       }
     ],
@@ -19,6 +21,7 @@
       {
         "type": "command",
         "bash": "bash \"$(git rev-parse --show-toplevel)/scripts/hooks/stop-docs-sync.sh\" copilot",
+        "powershell": "node \"$(git rev-parse --show-toplevel)/scripts/hooks/run-posix.mjs\" scripts/hooks/stop-docs-sync.sh copilot",
         "timeoutSec": 10
       }
     ]

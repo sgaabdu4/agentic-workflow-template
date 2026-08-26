@@ -566,7 +566,27 @@ for (const handler of commandHandlers(copilotHooks)) {
       handler.bash.includes("$(git rev-parse --show-toplevel)"),
     "Copilot hooks must use the documented bash key and resolve from the Git root",
   );
+  // Copilot picks a handler by platform: bash on Unix, powershell on Windows.
+  // A bash-only handler has nothing to run on Windows, and preToolUse is
+  // fail-closed, so every tool call is denied with "hook errored".
+  assert(
+    typeof handler.powershell === "string" &&
+      handler.powershell.includes("$(git rev-parse --show-toplevel)"),
+    "Copilot hooks must also declare a powershell command: a bash-only handler denies every tool call on Windows",
+  );
+  // Windows must not invoke `bash` by name -- System32\bash.exe is the WSL
+  // launcher and shadows Git Bash on PATH. Go through the Node shim, which
+  // resolves the real shell.
+  assert.doesNotMatch(
+    handler.powershell,
+    /(^|[\s"'])bash[\s"']/,
+    "the powershell command must not call bash by name; use scripts/hooks/run-posix.mjs so Git Bash is resolved explicitly",
+  );
 }
+assert(
+  fs.existsSync(at("scripts/hooks/run-posix.mjs")),
+  "scripts/hooks/run-posix.mjs is missing: the Windows Copilot handlers depend on it",
+);
 
 // Any nested directory proves the hook resolves paths from the Git root rather
 // than the working directory. Do not hard-code one an adopter may have deleted.
