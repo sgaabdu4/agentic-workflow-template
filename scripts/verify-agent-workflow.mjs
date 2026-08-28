@@ -71,10 +71,10 @@ const manualSkills = [
   "sync",
 ];
 const automaticSkills = ["assign-epic", "run"];
-const roleSkills = ["advisor", "worker", "morlock"];
+const roleSkills = ["consultant", "worker", "morlock"];
 const roleDescriptions = {
-  advisor:
-    "On-demand strategic advisor running on a more capable model. Consult before committing to a consequential decision — a non-trivial design choice, a risky refactor, an ambiguous tradeoff, or when the executor is stuck. It advises; it does not edit. Invoke it deliberately, not every turn.",
+  consultant:
+    "On-demand strategic consultant running on a more capable model. Consult before committing to a consequential decision — a non-trivial design choice, a risky refactor, an ambiguous tradeoff, or when the executor is stuck. It advises; it does not edit. Invoke it deliberately, not every turn.",
   morlock:
     "Probe the repository for reproducible security weaknesses and preserve confirmed findings as tests.",
   worker:
@@ -297,23 +297,23 @@ for (const name of roleSkills) {
 }
 
 assert.match(
-  read(".github/agents/advisor.agent.md"),
+  read(".github/agents/consultant.agent.md"),
   /^model: gpt-5\.6-sol$/m,
-  "Copilot advisor must use the more capable model it promises",
+  "Copilot consultant must use the more capable model it promises",
 );
 
-// The advisor "advises; it does not edit" promise is only hard where the adapter
+// The consultant "advises; it does not edit" promise is only hard where the adapter
 // withholds write tools. Codex cannot enforce it -- a role file's sandbox_mode
 // does not constrain the spawned agent -- so the two runtimes that can, must.
 assert.doesNotMatch(
-  read(".claude/agents/advisor.md").match(/^tools: .*$/m)?.[0] ?? "",
+  read(".claude/agents/consultant.md").match(/^tools: .*$/m)?.[0] ?? "",
   /\b(Write|Edit|Bash|NotebookEdit)\b/,
-  ".claude/agents/advisor.md must not grant a write tool: the read-only promise is enforced by the tool list, not by the role body",
+  ".claude/agents/consultant.md must not grant a write tool: the read-only promise is enforced by the tool list, not by the role body",
 );
 assert.doesNotMatch(
-  read(".github/agents/advisor.agent.md").match(/^tools: .*$/m)?.[0] ?? "",
+  read(".github/agents/consultant.agent.md").match(/^tools: .*$/m)?.[0] ?? "",
   /\b(edit|execute|write)\b/,
-  ".github/agents/advisor.agent.md must not grant a write tool: the read-only promise is enforced by the tool list, not by the role body",
+  ".github/agents/consultant.agent.md must not grant a write tool: the read-only promise is enforced by the tool list, not by the role body",
 );
 assert.match(
   read(".github/agents/worker.agent.md"),

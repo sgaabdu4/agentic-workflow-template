@@ -133,18 +133,35 @@ The 20 skills above are manual-only. Claude Code and GitHub Copilot CLI use the 
 
 One asymmetry to know about: `allowed-tools` in a skill's frontmatter is a **Claude Code** field. Four skills use it so their required `Step 0 — Context (required first)` block runs start to finish without a permission prompt. Codex and Copilot CLI have no equivalent in the shared skill file — they apply their own approval model — so on those runtimes a Step 0 block may still pause for approval. The facts it gathers are identical; only the prompting differs. `verify:agents` checks that every command in a Step 0 block is allow-listed, which is Claude-specific enforcement of a provider-neutral requirement.
 
-The three roles — `advisor`, `worker`, `morlock` — are guarded the same way, one step further. Their bodies live in `.agents/skills/<role>/SKILL.md` so all three runtimes share one copy, but they are **role bodies, not skills**: they carry `disable-model-invocation: true` _and_ `user-invocable: false`, plus `allow_implicit_invocation: false` for Codex, and their descriptions begin with `Role adapter only.` so the Copilot coding agent honours the `AGENTS.md` routing rule. Nothing may select or invoke them as a skill. Each role pins a model on all three runtimes, so the "more capable" and "lighter" promises hold everywhere rather than falling back to whatever model the session happens to be using.
+The three roles — `consultant`, `worker`, `morlock` — are guarded the same way, one step further. Their bodies live in `.agents/skills/<role>/SKILL.md` so all three runtimes share one copy, but they are **role bodies, not skills**: they carry `disable-model-invocation: true` _and_ `user-invocable: false`, plus `allow_implicit_invocation: false` for Codex, and their descriptions begin with `Role adapter only.` so the Copilot coding agent honours the `AGENTS.md` routing rule. Nothing may select or invoke them as a skill. Each role pins a model on all three runtimes, so the "more capable" and "lighter" promises hold everywhere rather than falling back to whatever model the session happens to be using.
 
 **Codex needs the role declared, not just present.** A `.codex/agents/<role>.toml` file is inert on its own — Codex only knows a role exists if `.codex/config.toml` declares it:
 
 ```toml
-[agents.advisor]
-config_file = "agents/advisor.toml"
+[agents.consultant]
+config_file = "agents/consultant.toml"
 ```
 
 Without that block Codex reports no spawnable roles at all, so the model and sandbox guarantees in the role description do not exist on that runtime. `verify:agents` asserts the declaration for every role.
 
-**How hard each guarantee actually is.** A role's `model` binds on all three runtimes — a spawned Codex advisor runs on `gpt-5.6-sol` per its own session record, and the Claude and Copilot morlock adapters report `claude-opus-5` and `gpt-5.6-sol`. The advisor's _read-only_ property is a hard tool restriction on Claude (`tools: Read, Grep, Glob`) and Copilot (`tools: [read, search, playwright/*]`), and `verify:agents` asserts neither grants a write tool. On Codex it is **instruction-level only, by design**: a spawned agent is deliberately not allowed to disagree with its parent about sandboxing. Codex layers role overrides first and then copies the parent turn's approval policy, cwd, and sandbox onto the child, so a role file's `sandbox_mode` parses cleanly and is then overwritten. This is not a misconfiguration to fix and not something a future key will change. Verified both directions: a `read-only` role wrote outside the repo under a permissive parent, and a `danger-full-access` role was refused under `--sandbox read-only`. If you need that boundary enforced on Codex, set the sandbox on the session (`codex --sandbox read-only`); there is no per-role mechanism. Each role is reached only through its adapter in `.claude/agents/`, `.codex/agents/`, or `.github/agents/`, which is what supplies the model, tool, and sandbox guarantees its description promises — loading the body directly would give an agent the instructions without any of them.
+**How hard each guarantee actually is.** A role's `model` binds on all three runtimes — a spawned Codex consultant runs on `gpt-5.6-sol` per its own session record, and the Claude and Copilot morlock adapters report `claude-opus-5` and `gpt-5.6-sol`. The consultant's _read-only_ property is a hard tool restriction on Claude (`tools: Read, Grep, Glob`) and Copilot (`tools: [read, search, playwright/*]`), and `verify:agents` asserts neither grants a write tool. On Codex it is **instruction-level only, by design**: a spawned agent is deliberately not allowed to disagree with its parent about sandboxing. Codex layers role overrides first and then copies the parent turn's approval policy, cwd, and sandbox onto the child, so a role file's `sandbox_mode` parses cleanly and is then overwritten. This is not a misconfiguration to fix and not something a future key will change. Verified both directions: a `read-only` role wrote outside the repo under a permissive parent, and a `danger-full-access` role was refused under `--sandbox read-only`. If you need that boundary enforced on Codex, set the sandbox on the session (`codex --sandbox read-only`); there is no per-role mechanism. Each role is reached only through its adapter in `.claude/agents/`, `.codex/agents/`, or `.github/agents/`, which is what supplies the model, tool, and sandbox guarantees its description promises — loading the body directly would give an agent the instructions without any of them.
+
+**Why the role is `consultant` and not `advisor`.** Claude Code ships a built-in server-side tool named `advisor` — a stronger reviewer model that receives the full conversation and is invoked by the model itself. With a role also named `advisor`, any instruction to "consult the advisor" resolves to the built-in tool on Claude Code, so the role's pinned model and read-only tool list are silently bypassed and `verify:agents` cannot see it happen. Renaming the role removes the ambiguity and lets both mechanisms run together; `AGENTS.md` § Consulting the `consultant` Role says which to reach for.
+
+The built-in tool is enabled repo-wide in `.claude/settings.json`:
+
+```json
+{
+  "advisorModel": "opus"
+}
+```
+
+`advisorModel` is undocumented at project scope — Anthropic's docs only mention user settings, and it is absent from the settings table — but it is honoured from `.claude/settings.json`, verified on Claude Code 2.1.237 (no key, no `advisor` tool; key present, tool present). Committing it here is what makes it a team default rather than something each developer has to remember to run `/advisor` for. Four things to know before adopting the template:
+
+- It is **experimental** and **Anthropic API only** — not Bedrock, Claude Platform on AWS, Google Cloud's Agent Platform, or Microsoft Foundry.
+- It costs extra tokens. The advisor model re-reads the whole conversation on every call, and that read is never cached.
+- It is delivered by a feature flag, so anything that stops flag fetching — `DISABLE_TELEMETRY`, for one — turns it off silently.
+- The advisor must be **at least as capable as the main model**. `opus` covers every main model this template expects; a Fable 5 main accepts only `fable`, and the pairing is rejected rather than downgraded. Run `/advisor off` to opt out locally.
 
 Use the runtime's skill interface to invoke a skill:
 
