@@ -156,12 +156,13 @@ The built-in tool is enabled repo-wide in `.claude/settings.json`:
 }
 ```
 
-`advisorModel` is undocumented at project scope — Anthropic's docs only mention user settings, and it is absent from the settings table — but it is honoured from `.claude/settings.json`, verified on Claude Code 2.1.237 (no key, no `advisor` tool; key present, tool present). Committing it here is what makes it a team default rather than something each developer has to remember to run `/advisor` for. Four things to know before adopting the template:
+The [settings reference](https://code.claude.com/docs/en/settings-reference#advisormodel) permits `advisorModel` in any settings file, so committing it here is what makes it a team default rather than something each developer has to remember to run `/advisor` for. Confirmed on Claude Code 2.1.237: with no key the model reports no `advisor` tool, with the key in `.claude/settings.json` it reports one. Five things to know before adopting the template:
 
-- It is **experimental** and **Anthropic API only** — not Bedrock, Claude Platform on AWS, Google Cloud's Agent Platform, or Microsoft Foundry.
-- It costs extra tokens. The advisor model re-reads the whole conversation on every call, and that read is never cached.
+- It is **experimental** and **Anthropic API only** — not Bedrock, Claude Platform on AWS, Google Cloud's Agent Platform, or Microsoft Foundry. On those providers the setting is simply inert.
+- It costs extra tokens, and **subagents inherit it**. The advisor re-reads the whole conversation on every call and that read is never cached, so a `consultant` delegation can itself trigger advisor calls billed against its own transcript. There is no setting that caps how often the advisor is called.
 - It is delivered by a feature flag, so anything that stops flag fetching — `DISABLE_TELEMETRY`, for one — turns it off silently.
-- The advisor must be **at least as capable as the main model**. `opus` covers every main model this template expects; a Fable 5 main accepts only `fable`, and the pairing is rejected rather than downgraded. Run `/advisor off` to opt out locally.
+- The advisor must be **at least as capable as the main model**. `opus` covers Haiku, Sonnet, and supported Opus mains; a Fable 5 main accepts only `fable`. An unsatisfiable pairing is rejected outright rather than downgraded, so the advisor just does not attach — no fixed value is portable across every possible main model.
+- **To opt out, set `CLAUDE_CODE_DISABLE_ADVISOR_TOOL=1`.** `/advisor off` clears only your _user-level_ selection, and a committed project value outranks user settings, so it will not defeat this one.
 
 Use the runtime's skill interface to invoke a skill:
 
